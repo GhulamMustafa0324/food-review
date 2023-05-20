@@ -1,0 +1,36 @@
+[
+  {
+    "name": "Restaurant 1",
+    "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+    "rating": 4.5,
+    "image": {
+      "url": "https://example.com/restaurant1.jpg",
+      "alt": "Restaurant 1 Image"
+    },
+    "reviews": [
+      {
+        "user": "User 1",
+        "comment": "Great food!"
+      },
+      {
+        "user": "User 2",
+        "comment": "Excellent service."
+      }
+    ]
+  },
+  {
+    "name": "Restaurant 2",
+    "description": "Nullam mattis, dui ut tristique tempor, mauris felis commodo est, sit amet semper sem est eu nunc.",
+    "rating": 3.8,
+    "image": {
+      "url": "https://example.com/restaurant2.jpg",
+      "alt": "Restaurant 2 Image"
+    },
+    "reviews": [
+      {
+        "user": "User 3",
+        "comment": "Average food."
+      }
+    ]
+  }
+]

@@ -1,113 +1,221 @@
-import Image from 'next/image'
+"use client";
+import Image from "next/image";
+import Link from "next/link";
+import {
+  getAuth,
+  signInWithPopup,
+  GoogleAuthProvider,
+  signOut,
+} from "firebase/auth";
+import firebase from "./utils/firebaseConfig";
+import { useEffect, useState } from "react";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  onSnapshot,
+  limit,
+  query,
+} from "firebase/firestore";
+// import { useRouter } from "next/router";
 
 export default function Home() {
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.js</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
+  const [restaurants, setRestaurants] = useState([]);
+  const [searchInput, setSearchInput] = useState("");
+  // const router = useRouter();
 
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px]">
+  useEffect(() => {
+    const firestore = getFirestore();
+    const restaurantsCollection = collection(firestore, "restaurants");
+    const limitedRestaurantsQuery = query(restaurantsCollection, limit(12));
+
+    const unsubscribe = onSnapshot(limitedRestaurantsQuery, (snapshot) => {
+      const updatedRestaurants = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setRestaurants(updatedRestaurants);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleSearch = (event) => {
+    setSearchInput(event.target.value);
+  };
+
+  const filteredRestaurants = restaurants.filter((restaurant) => {
+    const { name, description } = restaurant;
+    const lowerCaseSearchInput = searchInput.toLowerCase();
+
+    return (
+      name.toLowerCase().includes(lowerCaseSearchInput) ||
+      description.toLowerCase().includes(lowerCaseSearchInput)
+    );
+  });
+
+  const handleRestaurantClick = (restaurantId) => {
+    // router.push(`/pages/restaurant/${restaurantId}`);
+  };
+
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const auth = getAuth(firebase);
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        // User is signed in
+        setUser(user);
+      } else {
+        // User is signed out
+        setUser(null);
+      }
+    });
+
+    // Cleanup the listener when the component is unmounted
+    return () => unsubscribe();
+  }, []);
+
+  const signInWithGoogle = () => {
+    const provider = new GoogleAuthProvider();
+    const auth = getAuth(firebase);
+    signInWithPopup(auth, provider)
+      .then((result) => {
+        // Handle successful sign-in
+        const user = result.user;
+        console.log("User signed in:", user);
+      })
+      .catch((error) => {
+        // Handle error
+        console.error("Error signing in with Google:", error);
+      });
+  };
+
+  const handleSignOut = () => {
+    const auth = getAuth(firebase);
+    signOut(auth)
+      .then(() => {
+        // Handle successful sign-out
+        setUser(null);
+      })
+      .catch((error) => {
+        // Handle error
+        console.error("Error signing out:", error);
+      });
+  };
+  return (
+    <div className="flex flex-col min-h-screen">
+      {/* Header */}
+      <header className="bg-transparent z-50 text-white py-8 px-8">
+        {/* Navigation */}
+        <nav className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold">
+              <Link href="/">
+                <span className="text-white hover:text-gray-400">
+                  Foodie Reviews
+                </span>
+              </Link>
+            </h1>
+          </div>
+          <div className="flex items-center">
+            <div className="flex-grow">
+              <input
+                type="text"
+                value={searchInput}
+                onChange={handleSearch}
+                placeholder="Search..."
+                className="px-4 py-2 rounded-md border text-black border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            {user ? (
+              <button
+                onClick={handleSignOut}
+                className="bg-red-600 text-white px-4 py-2 rounded-md mr-4 hover:bg-red-700"
+              >
+                Sign Out
+              </button>
+            ) : (
+              <button
+                onClick={signInWithGoogle}
+                className="bg-red-600 text-white px-4 py-2 rounded-md mr-4 hover:bg-red-700"
+              >
+                Sign in with Google
+              </button>
+            )}
+          </div>
+        </nav>
+      </header>
+
+      <div className="h-screen bg-black flex items-center justify-center">
+        <div className="text-white text-center">
+          <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4">
+            Welcome to Foodie Reviews
+          </h2>
+          <p className="text-lg sm:text-xl md:text-2xl">
+            Discover and review the best restaurants in town
+          </p>
+        </div>
+
         <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
+          className="object-cover absolute inset-0 object-center opacity-40 "
+          alt="Background Image"
+          src="/images/restaurant2.jpg"
+          fill
+          sizes="100vw"
         />
       </div>
 
-      <div className="mb-32 grid text-center lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
+      <main className="flex-grow">
+        <section className="my-1">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold">
+            Popular Restaurants
           </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
+            {filteredRestaurants.map((restaurant) => (
+              <div
+                key={restaurant.id}
+                className="p-4 border-b-2 cursor-pointer"
+                onClick={() => handleRestaurantClick(restaurant.id)}
+              >
+                {/* Restaurant image */}
+                <div className="w-full h-48 mb-4 relative">
+                  <img
+                    src={restaurant.image.url}
+                    alt={restaurant.image.alt}
+                    width={restaurant.image.width}
+                    height={restaurant.image.height}
+                    className="w-full h-48 object-cover mb-4"
+                  />
+                </div>
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800 hover:dark:bg-opacity-30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
+                {/* Restaurant details */}
+                <h3 className="text-xl font-bold mb-2">{restaurant.name}</h3>
+                <p className="text-sm mb-4">{restaurant.description}</p>
+                <div className="flex items-center">
+                  <span className="text-yellow-500 mr-1">&#9733;</span>
+                  <span>{restaurant.rating}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore the Next.js 13 playground.
-          </p>
-        </a>
+        {/* Show all restaurants button */}
 
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
-  )
+        <div className="p-4 border-b-2 flex items-center justify-center">
+          <Link
+            className="text-black hover:underline bg-gray-200 px-4 py-2 rounded-md"
+            href="/"
+          >
+            See All Restaurants
+          </Link>
+        </div>
+      </main>
+
+      <footer className="text-center py-4">
+        <p>&copy; 2023 Foodie Reviews. All rights reserved.</p>
+      </footer>
+    </div>
+  );
 }
